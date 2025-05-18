@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DomKit Demo</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .counter {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      button {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      button.decrement {
+        background-color: #f44336;
+      }
+      .count {
+        font-size: 24px;
+        font-weight: bold;
+        min-width: 40px;
+        text-align: center;
+      }
+      .todo-app {
+        margin-top: 30px;
+      }
+      .todo-input {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      .todo-input input {
+        flex-grow: 1;
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .todo-list {
+        list-style-type: none;
+        padding: 0;
+      }
+      .todo-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+      }
+      .todo-item button {
+        margin-left: auto;
+      }
+      .todo-item.completed span {
+        text-decoration: line-through;
+        color: #999;
+      }
+      .color-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin: 5px;
+        cursor: pointer;
+        display: inline-block;
+      }
+      /* New styles for inject/append/prepend demos */
+      .notification {
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin: 5px 0;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .notification.info {
+        background-color: #2196f3;
+      }
+      .notification.success {
+        background-color: #4caf50;
+      }
+      .notification.warning {
+        background-color: #ffc107;
+        color: black;
+      }
+      .notification.error {
+        background-color: #f44336;
+      }
+      .notification button {
+        background: transparent;
+        border: none;
+        color: inherit;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0 5px;
+        margin: 0;
+      }
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 50%;
+        background-color: #f44336;
+        color: white;
+        font-size: 12px;
+        margin-left: 5px;
+      }
+      #notifications {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .navigation {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .navigation button {
+        background-color: #333;
+      }
+      .tab-content {
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 0 0 4px 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DomKit Demo</h1>
+    <p>
+      This demo showcases components and rendering with event handling using
+      DomKit, including the new append and prepend functionality.
+    </p>
+
+    <div id="counter-app" class="card"></div>
+    <div id="todo-app" class="card"></div>
+    <div id="color-picker" class="card"></div>
+
+    <div id="injection-demo" class="card">
+      <h2>Injection Demo</h2>
+      <p>Demonstrates append, prepend, and inject functionality</p>
+
+      <div class="navigation">
+        <button id="add-notification">Add Notification</button>
+        <button id="prepend-notification">Prepend Notification</button>
+        <button id="clear-notifications">Clear All</button>
+      </div>
+
+      <div id="notifications"></div>
+    </div>
+
+    <!-- Include DomKit library -->
+    <script src="DomKit.js"></script>
+
+    <script>
+      // Create aliases for convenience
+      const {
+        h,
+        render,
+        createComponent,
+        mount,
+        inject,
+        updateInjected,
+        append,
+        prepend,
+      } = DomKit;
+
+      // Counter Component (existing)
+      const Counter = createComponent((props) => {
+        const count = props.count || 0;
+
+        const increment = () => {
+          render(h(Counter, { count: count + 1 }), "#counter-app");
+        };
+
+        const decrement = () => {
+          render(h(Counter, { count: count - 1 }), "#counter-app");
+        };
+
+        return h("div", {}, [
+          h("h2", {}, ["Counter Component"]),
+          h("div", { className: "counter" }, [
+            h("button", { onClick: decrement, className: "decrement" }, ["-"]),
+            h("span", { className: "count" }, [count.toString()]),
+            h("button", { onClick: increment }, ["+"]),
+          ]),
+        ]);
+      });
+
+      render(h(Counter), document.getElementById("counter-app"));
+
+      // Todo App Component (existing)
+      const TodoApp = createComponent((props) => {
+        const todos = props.todos || [];
+
+        const addTodo = (e) => {
+          e.preventDefault();
+          const input = document.getElementById("new-todo");
+          const text = input.value.trim();
+
+          if (text) {
+            const newTodos = [
+              ...todos,
+              { id: Date.now(), text, completed: false },
+            ];
+            render(
+              h(TodoApp, { todos: newTodos }),
+              document.getElementById("todo-app")
+            );
+            input.value = "";
+          }
+        };
+
+        const toggleTodo = (id) => {
+          const newTodos = todos.map((todo) =>
+            todo.id === id ? { ...todo, completed: !todo.completed } : todo
+          );
+          render(
+            h(TodoApp, { todos: newTodos }),
+            document.getElementById("todo-app")
+          );
+        };
+
+        const deleteTodo = (id) => {
+          const newTodos = todos.filter((todo) => todo.id !== id);
+          render(
+            h(TodoApp, { todos: newTodos }),
+            document.getElementById("todo-app")
+          );
+        };
+
+        return h("div", { className: "todo-app" }, [
+          h("h2", {}, ["Todo List Component"]),
+          h("form", { className: "todo-input", onSubmit: addTodo }, [
+            h("input", {
+              id: "new-todo",
+              placeholder: "Add a new task...",
+              type: "text",
+            }),
+            h("button", { type: "submit" }, ["Add"]),
+          ]),
+          h(
+            "ul",
+            { className: "todo-list" },
+            todos.map((todo) =>
+              h(
+                "li",
+                {
+                  className: todo.completed
+                    ? "todo-item completed"
+                    : "todo-item",
+                  key: todo.id,
+                },
+                [
+                  h(
+                    "span",
+                    {
+                      onClick: () => toggleTodo(todo.id),
+                      style: { cursor: "pointer" },
+                    },
+                    [todo.text]
+                  ),
+                  h("button", { onClick: () => deleteTodo(todo.id) }, [
+                    "Delete",
+                  ]),
+                ]
+              )
+            )
+          ),
+        ]);
+      });
+
+      render(h(TodoApp), document.getElementById("todo-app"));
+
+      // Color Picker Component (existing)
+      const ColorPicker = createComponent((props) => {
+        const selectedColor = props.selectedColor || "#4CAF50";
+        const colors = [
+          "#f44336",
+          "#4CAF50",
+          "#2196F3",
+          "#FFC107",
+          "#9C27B0",
+          "#795548",
+        ];
+
+        const selectColor = (color) => {
+          render(
+            h(ColorPicker, { selectedColor: color }),
+            document.getElementById("color-picker")
+          );
+        };
+
+        return h("div", {}, [
+          h("h2", {}, ["Color Picker Component"]),
+          h("p", {}, [`Selected color: ${selectedColor}`]),
+          h(
+            "div",
+            {
+              style: {
+                backgroundColor: selectedColor,
+                padding: "20px",
+                borderRadius: "4px",
+                marginBottom: "15px",
+              },
+            },
+            ["Color Preview"]
+          ),
+          h(
+            "div",
+            {},
+            colors.map((color) =>
+              h("div", {
+                className: "color-circle",
+                onClick: () => selectColor(color),
+                style: {
+                  backgroundColor: color,
+                  border:
+                    color === selectedColor
+                      ? "3px solid black"
+                      : "1px solid #ddd",
+                },
+              })
+            )
+          ),
+        ]);
+      });
+
+      render(h(ColorPicker), document.getElementById("color-picker"));
+
+      // Notification Component
+      const Notification = createComponent((props) => {
+        const { type = "info", message, onClose } = props;
+
+        return h(
+          "div",
+          {
+            className: `notification ${type}`,
+          },
+          [h("span", {}, [message]), h("button", { onClick: onClose }, ["×"])]
+        );
+      });
+
+      // Notification counter
+      let notificationCount = 0;
+
+      // Function to generate random notification
+      const randomNotification = () => {
+        const types = ["info", "success", "warning", "error"];
+        const messages = [
+          "New message received",
+          "Action completed successfully",
+          "Warning: Low disk space",
+          "Error: Connection failed",
+          "Update available",
+          "Task completed",
+        ];
+
+        const type = types[Math.floor(Math.random() * types.length)];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        notificationCount++;
+
+        // Ensure we're returning the Notification component wrapped in h()
+        return h(Notification, {
+          type,
+          message: `${message} #${notificationCount}`,
+          onClose: (e) => {
+            // Find the closest notification element and remove it
+            const notification = e.target.closest(".notification");
+            if (notification) {
+              notification.remove();
+            }
+          },
+        });
+      };
+
+      // Set up event listeners
+      document
+        .getElementById("add-notification")
+        .addEventListener("click", () => {
+          // console.log(randomNotification());
+          append(randomNotification(), "#notifications");
+        });
+
+      document
+        .getElementById("prepend-notification")
+        .addEventListener("click", () => {
+          prepend(randomNotification(), "#notifications");
+        });
+
+      document
+        .getElementById("clear-notifications")
+        .addEventListener("click", () => {
+          const container = document.getElementById("notifications");
+          while (container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
+        });
+
+      // Initial notifications
+
+      append(
+        h(Notification, {
+          type: "info",
+          message: "Welcome to the notification demo!",
+          onClose: (e) => {
+            e.target.parentNode.remove();
+          },
+        }),
+        "#notifications"
+      );
+
+      prepend(
+        h(Notification, {
+          type: "success",
+          message: "This is a prepended notification",
+          onClose: (e) => {
+            e.target.parentNode.remove();
+          },
+        }),
+        "#notifications"
+      );
+    </script>
+  </body>
+</html>
