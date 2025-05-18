@@ -154,13 +154,13 @@ const DomKit = (function () {
   const createDomElement = (vnode) => {
     // Handle text nodes
     if (typeof vnode === "string" || typeof vnode === "number") {
-      return document.createTextNode(vnode);
+        return document.createTextNode(vnode);
     }
 
     // Handle component references
     if (typeof vnode.tag === "function") {
-      const componentResult = vnode.tag(vnode.props || {});
-      return createDomElement(componentResult);
+        const componentResult = vnode.tag(vnode.props || {});
+        return createDomElement(componentResult);
     }
 
     // Regular elements
@@ -168,16 +168,21 @@ const DomKit = (function () {
 
     // Set properties
     if (vnode.props) {
-      updateProps(element, vnode.props, {});
+        updateProps(element, vnode.props, {});
     }
 
-    // Append children
-    (vnode.children || []).forEach((child) => {
-      element.appendChild(createDomElement(child));
+    // Ensure children is an array and append children
+    const children = Array.isArray(vnode.children) ? vnode.children : 
+                   (vnode.children ? [vnode.children] : []);
+    
+    children.forEach((child) => {
+        if (child !== null && child !== undefined) {
+            element.appendChild(createDomElement(child));
+        }
     });
 
     return element;
-  };
+};
 
   // Render virtual DOM to real DOM with diffing
   const render = (vnode, container) => {
