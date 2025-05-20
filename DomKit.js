@@ -5,14 +5,36 @@
 
 const DomKit = (function () {
   const h = (tag, props = {}, children = []) => {
-    return { tag, props, children };
+    // Validate tag
+    if (tag === null || tag === undefined) {
+      console.error("Tag cannot be null/undefined");
+      tag = "div"; // Fallback or return null
+    }
+
+    // Filter out null/undefined children
+    const filteredChildren = Array.isArray(children)
+      ? children.filter((child) => child != null)
+      : children != null
+      ? [children]
+      : [];
+
+    return { tag, props, children: filteredChildren };
   };
 
   const isNodeChanged = (node1, node2) => {
+    if (node1.props?.key !== node2.props?.key) return true;
+    // Handle null cases first
+    if (node1 === null || node2 === null) {
+      return node1 !== node2; // If both null, they're equal; otherwise they're different
+    }
+
     if (typeof node1 !== typeof node2) return true;
 
     if (typeof node1 === "string" || typeof node1 === "number")
       return node1 !== node2;
+
+    // Additional check to make sure both are objects with a tag property
+    if (!node1.tag || !node2.tag) return true;
 
     if (node1.tag !== node2.tag) return true;
 
@@ -44,6 +66,15 @@ const DomKit = (function () {
   };
 
   const updateProps = (element, newProps, oldProps) => {
+    if (!element || !(element instanceof HTMLElement)) {
+      console.error("Invalid element passed to updateProps");
+      return;
+    }
+
+    if (newProps.ref && typeof newProps.ref === "function") {
+      newProps.ref(element);
+    }
+
     Object.keys(oldProps).forEach((name) => {
       if (
         name.startsWith("on") &&
@@ -106,9 +137,20 @@ const DomKit = (function () {
 
   // DOM diffing algorithm
   const updateElement = (parent, newNode, oldNode, index = 0) => {
+    if (!parent || !(parent instanceof Node)) {
+      console.error("Invalid parent node");
+      return;
+    }
+    // Support for custom renderers (for focus retention)
+    let postRenderCallback = null;
+    if (newNode && typeof newNode === "object" && newNode._customRender) {
+      postRenderCallback = newNode._customRender(oldNode);
+    }
+
     // If old node doesn't exist, append new node
     if (!oldNode) {
       parent.appendChild(createDomElement(newNode));
+      if (postRenderCallback) postRenderCallback();
       return;
     }
 
@@ -121,11 +163,13 @@ const DomKit = (function () {
     // If nodes are different, replace old with new
     if (isNodeChanged(newNode, oldNode)) {
       parent.replaceChild(createDomElement(newNode), parent.childNodes[index]);
+      if (postRenderCallback) postRenderCallback();
       return;
     }
 
     // If it's a text node and not changed, we're done (handled by isNodeChanged)
     if (typeof newNode === "string" || typeof newNode === "number") {
+      if (postRenderCallback) postRenderCallback();
       return;
     }
 
@@ -148,19 +192,27 @@ const DomKit = (function () {
         i
       );
     }
+
+    // Run post-render callback (for focus retention)
+    if (postRenderCallback) postRenderCallback();
   };
 
-  // Create DOM element from virtual node
+  // Create DOM element from virtual node, add support for refs and custom renderers
   const createDomElement = (vnode) => {
+    // Handle null/undefined cases
+    if (vnode === null || vnode === undefined) {
+      return document.createTextNode("");
+    }
+
     // Handle text nodes
     if (typeof vnode === "string" || typeof vnode === "number") {
-        return document.createTextNode(vnode);
+      return document.createTextNode(vnode);
     }
 
     // Handle component references
     if (typeof vnode.tag === "function") {
-        const componentResult = vnode.tag(vnode.props || {});
-        return createDomElement(componentResult);
+      const componentResult = vnode.tag(vnode.props || {});
+      return createDomElement(componentResult);
     }
 
     // Regular elements
@@ -168,27 +220,53 @@ const DomKit = (function () {
 
     // Set properties
     if (vnode.props) {
-        updateProps(element, vnode.props, {});
+      updateProps(element, vnode.props, {});
+
+      // Handle ref property
+      if (vnode.props.ref && typeof vnode.props.ref === "function") {
+        vnode.props.ref(element);
+      }
     }
 
     // Ensure children is an array and append children
-    const children = Array.isArray(vnode.children) ? vnode.children : 
-                   (vnode.children ? [vnode.children] : []);
-    
+    const children = Array.isArray(vnode.children)
+      ? vnode.children
+      : vnode.children
+      ? [vnode.children]
+      : [];
+
     children.forEach((child) => {
-        if (child !== null && child !== undefined) {
-            element.appendChild(createDomElement(child));
-        }
+      if (child !== null && child !== undefined) {
+        element.appendChild(createDomElement(child));
+      }
     });
 
     return element;
-};
+  };
 
   // Render virtual DOM to real DOM with diffing
   const render = (vnode, container) => {
-    // Handle string selectors
+    if (!container) {
+      console.error("Render failed: no container provided");
+      return;
+    }
+
     if (typeof container === "string") {
       container = document.querySelector(container);
+      if (!container) {
+        console.error(`Container selector "${container}" not found`);
+        return;
+      }
+    }
+
+    // Ensure container is a DOM element
+    if (typeof container === "string") {
+      const domContainer = document.querySelector(container);
+      if (!domContainer) {
+        console.error(`Container not found: ${container}`);
+        return; // Exit early to prevent null errors
+      }
+      container = domContainer;
     }
 
     // First render or full refresh
@@ -208,9 +286,47 @@ const DomKit = (function () {
     }
   };
 
+  // Create a helper function to standardize the pattern
+  const createApp = (renderFn, initialState, containerSelector) => {
+    const container =
+      typeof containerSelector === "string"
+        ? document.querySelector(containerSelector)
+        : containerSelector;
+
+    if (!container) {
+      console.error(`Container not found: ${containerSelector}`);
+      return;
+    }
+
+    const state = DomKit.createState(initialState);
+
+    const update = () => {
+      const vnode = renderFn(state.getState(), state.setState.bind(state));
+      DomKit.render(vnode, container);
+    };
+
+    // Subscribe to state changes
+    state.subscribe(update);
+
+    // Initial render
+    update();
+
+    return {
+      getState: state.getState,
+      setState: state.setState,
+    };
+  };
+
   // Simple component factory
   const createComponent = (template) => {
-    return (props) => template(props);
+    return (props) => {
+      try {
+        return template(props);
+      } catch (error) {
+        console.error("Component render error:", error);
+        return h("div", { className: "error" }, ["Component error"]);
+      }
+    };
   };
 
   // Updated inject function
@@ -273,6 +389,11 @@ const DomKit = (function () {
     // Get the old vdom
     const oldNode = target._injected[index];
 
+     // At least validate if the new node is different
+    if (oldNode && !isNodeChanged(newNode, oldNode)) {
+      return target.children[index];  // No changes needed
+    }
+
     // Get the corresponding DOM element
     const domElement = target.children[index];
 
@@ -294,11 +415,196 @@ const DomKit = (function () {
     return newElement;
   };
 
+  // State management system for DomKit
+  const createState = (initialState = {}) => {
+    let updateQueue = [];
+    let state = { ...initialState };
+    const listeners = [];
+
+    const processQueue = () => {
+      if (updateQueue.length > 0) {
+        state = { ...state, ...Object.assign({}, ...updateQueue) };
+        updateQueue = [];
+        listeners.forEach((listener) => listener(state));
+      }
+    };
+
+    const debouncedSetState = (newState) => {
+      updateQueue.push(newState);
+      requestAnimationFrame(processQueue);
+    };
+
+    const getState = () => ({ ...state });
+
+    const setState = (newState) => {
+      if (typeof newState !== "object" || newState === null) {
+        console.error("State must be an object");
+        return;
+      }
+      // Merge the new state with the existing state
+      state = { ...state, ...newState };
+
+      // Notify all listeners
+      listeners.forEach((listener) => listener(state));
+    };
+
+    const subscribe = (listener) => {
+      listeners.push(listener);
+
+      // Return unsubscribe function
+      return () => {
+        const index = listeners.indexOf(listener);
+        if (index > -1) listeners.splice(index, 1);
+      };
+    };
+
+    const cleanup = () => {
+      listeners.length = 0;
+    };
+
+    return {
+      getState,
+      setState: debouncedSetState,
+      subscribe,
+      cleanup, // Expose cleanup method
+    };
+  };
+
+  // Component with state hook
+  const createStatefulComponent = (renderFn, initialState = {}) => {
+    const stateManager = createState(initialState);
+    let lastRenderedNode = null;
+
+    const component = (props) => {
+      const { getState, setState } = stateManager; // subscribe removed 
+
+      // Provide state management capabilities to the render function
+      const result = renderFn({
+        ...props,
+        state: getState(),
+        setState,
+      });
+
+      lastRenderedNode = result;
+      return result;
+    };
+
+    // Attach state management to the component
+    component.getState = stateManager.getState;
+    component.setState = stateManager.setState;
+    component.subscribe = stateManager.subscribe;
+    component.forceUpdate = (container) => {
+      if (container && lastRenderedNode) {
+        DomKit.render(lastRenderedNode, container);
+      }
+    };
+
+    return component;
+  };
+
+  // Helper for managing component with automatic re-rendering
+  const useState = (initialState, renderFn, container) => {
+    const state = createState(initialState);
+    let currentVNode = null;
+
+    // Initial render
+    const render = () => {
+      currentVNode = renderFn(state.getState(), state.setState);
+      DomKit.render(currentVNode, container);
+    };
+
+    // Subscribe to state changes
+    state.subscribe(render);
+
+    // Initial render
+    render();
+
+    return state;
+  };
+
+  // Input field component with focus retention
+  const createInputField = (props = {}) => {
+    // Validate props
+    if (props.value === undefined) props.value = "";
+    if (typeof props.onChange !== "function") props.onChange = () => {};
+    const { value, onChange, ...restProps } = props;
+    let currentElement = null;
+
+    const handleChange = (e) => {
+      if (onChange) onChange(e.target.value, e);
+    };
+
+    const vnode = DomKit.h("input", {
+      ...restProps,
+      value: value || "",
+      onChange: handleChange,
+      ref: (el) => {
+        currentElement = el;
+      },
+    });
+
+    // Custom rendering function to preserve focus
+    vnode._customRender = () => {
+      const wasFocused = document.activeElement === currentElement;
+      const selection = {
+        start: currentElement ? currentElement.selectionStart : 0,
+        end: currentElement ? currentElement.selectionEnd : 0,
+      };
+
+      // Let the normal render happen
+      // Return value indicates if we need to restore focus
+      return () => {
+        if (wasFocused && currentElement) {
+          currentElement.focus();
+          currentElement.setSelectionRange(selection.start, selection.end);
+        }
+      };
+    };
+
+    return vnode;
+  };
+
+  const memo = (component, shouldUpdate) => {
+    if (typeof component !== "function") {
+      console.error("DomKit.memo: First argument must be a component function");
+      return component;
+    }
+
+    let lastProps = null;
+    let lastResult = null;
+
+    return (props = {}) => {
+      // Always re-render if no comparison function provided
+      const shouldReRender = !shouldUpdate
+        ? true
+        : shouldUpdate(lastProps, props);
+
+      if (!lastResult || shouldReRender) {
+        try {
+          lastResult = component(props);
+          lastProps = props;
+        } catch (error) {
+          console.error("DomKit.memo: Component render error:", error);
+          return h("div", { className: "error" }, ["Component error"]);
+        }
+      }
+
+      return lastResult;
+    };
+  };
+
   // Public API
   return {
     h,
     render,
     createComponent,
+    createApp,
+    // State management
+    createState,
+    createStatefulComponent,
+    useState,
+    createInputField,
+    memo,
     // Utility methods
     mount(component, container) {
       render(h(component), container);
