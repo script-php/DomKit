@@ -252,15 +252,6 @@ const DomKit = (function () {
     }
 
     if (typeof container === "string") {
-      container = document.querySelector(container);
-      if (!container) {
-        console.error(`Container selector "${container}" not found`);
-        return;
-      }
-    }
-
-    // Ensure container is a DOM element
-    if (typeof container === "string") {
       const domContainer = document.querySelector(container);
       if (!domContainer) {
         console.error(`Container not found: ${container}`);
@@ -269,14 +260,34 @@ const DomKit = (function () {
       container = domContainer;
     }
 
-    // First render or full refresh
-    if (!container._vdom) {
-      // Clear container
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
+    // Safe Mutation Observer initialization
+    if (typeof MutationObserver !== 'undefined' && !container._observer) {
+      try {
+        container._observer = new MutationObserver(() => {
+          container._externallyModified = true;
+        });
+        
+        container._observer.observe(container, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          characterData: true
+        });
+      } catch (error) {
+        console.warn('MutationObserver setup failed:', error);
       }
+    }
 
-      // Create new DOM tree
+    // Force reset if we detect external changes
+    if (container._externallyModified) {
+      container._vdom = null;
+      container._externallyModified = false;
+    }
+
+    // Render with diffing or create from scratch
+    if (!container._vdom) {
+      // Clear container (using the more efficient method)
+      container.innerHTML = '';
       container.appendChild(createDomElement(vnode));
       container._vdom = vnode;
     } else {
