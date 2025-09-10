@@ -1,26 +1,258 @@
 /**
  * DomKit - A minimalist front-end renderer with component support
- * Version: v1.0.0
+ * Version: v1.1.0
  */
 
 const DomKit = (function () {
-  const h = (tag, props = {}, children = []) => {
-    // Validate tag
-    if (tag === null || tag === undefined) {
-      console.error("Tag cannot be null/undefined");
-      tag = "div"; // Fallback or return null
+
+  // Component loader settings
+  const componentCache = new Map();
+  const componentRegistry = new Map();
+  const loadingComponents = new Map();
+  let COMPONENT_BASE_URL = '';
+  let COMPONENT_PATH = '/components/';
+
+  // Settings function
+  function configureComponentLoader(settings = {}) {
+    if (settings.domain) {
+      COMPONENT_BASE_URL = settings.domain;
     }
 
-    // Filter out null/undefined children
+    if (settings.componentPath) {
+      COMPONENT_PATH = settings.componentPath;
+    }
+
+    if (settings.components) {
+      Object.entries(settings.components).forEach(([name, path]) => {
+        registerComponent(name, path);
+      });
+    }
+
+    console.log(`Component loader configured: ${COMPONENT_BASE_URL}${COMPONENT_PATH}`);
+  }
+
+  // Helper to find component names in vnode tree (ADDED 10.09.2024)
+  function findComponentNames(vnode) {
+    const names = new Set();
+
+    function traverse(node) {
+      if (!node) return;
+
+      // Look for component placeholders
+      if (node.props && node.props['data-component-name']) {
+        const componentName = node.props['data-component-name'];
+        if (!componentCache.has(componentName)) {
+          names.add(componentName);
+        }
+      }
+
+      // Also check for registered component names that aren't loaded yet
+      if (typeof node.tag === 'string' && componentRegistry.has(node.tag) && !componentCache.has(node.tag)) {
+        names.add(node.tag);
+      }
+
+      if (node.children) {
+        node.children.forEach(traverse);
+      }
+    }
+
+    traverse(vnode);
+    return Array.from(names);
+  }
+
+  function recreateVNodeWithComponents(vnode) {
+    if (!vnode) return vnode;
+
+    if (typeof vnode === 'string' || typeof vnode === 'number') {
+      return vnode;
+    }
+
+    // If this is a component placeholder, replace it with the actual component
+    if (vnode.props && vnode.props['data-component-name']) {
+      const componentName = vnode.props['data-component-name'];
+      if (componentCache.has(componentName)) {
+        const component = componentCache.get(componentName);
+        const props = JSON.parse(vnode.props['data-component-props'] || '{}');
+
+        // Restore event handlers from the placeholder
+        if (vnode._eventHandlers) {
+          Object.assign(props, vnode._eventHandlers);
+        }
+
+        const children = JSON.parse(vnode.props['data-component-children'] || '[]');
+        return h(component, props, children);
+      }
+    }
+
+    // Process children recursively
+    const newChildren = vnode.children
+      ? vnode.children.map(recreateVNodeWithComponents)
+      : [];
+
+    return {
+      tag: vnode.tag,
+      props: { ...vnode.props },
+      children: newChildren
+    };
+  }
+
+  function unloadComponent(name) {
+    if (componentCache.has(name)) {
+      componentCache.delete(name);
+      console.log(`Component unloaded: ${name}`);
+    }
+    return true;
+  }
+
+  function unloadAllComponents() {
+    const names = Array.from(componentCache.keys());
+    names.forEach(name => unloadComponent(name));
+    return names;
+  }
+
+  function cleanupComponentLoader() {
+    unloadAllComponents();
+    componentRegistry.clear();
+    loadingComponents.clear();
+  }
+
+  function loadComponent(name) {
+    if (componentCache.has(name)) {
+      return Promise.resolve(componentCache.get(name));
+    }
+
+    // Check if component is already being loaded
+    if (loadingComponents.has(name)) {
+      return loadingComponents.get(name);
+    }
+
+    // Check if component is registered
+    if (!componentRegistry.has(name)) {
+      return Promise.reject(new Error(`Component "${name}" is not registered.`));
+    }
+
+    const loadPromise = new Promise((resolve, reject) => {
+      const componentPath = componentRegistry.get(name);
+      const scriptUrl = `${COMPONENT_BASE_URL}${COMPONENT_PATH}${componentPath}`;
+
+      const script = document.createElement('script');
+      script.src = scriptUrl;
+      script.onload = () => {
+        if (window.__domkitComponents && window.__domkitComponents[name]) {
+          const component = window.__domkitComponents[name];
+          componentCache.set(name, component);
+          loadingComponents.delete(name);
+          resolve(component);
+        } else {
+          loadingComponents.delete(name);
+          reject(new Error(`Component "${name}" was not properly exported.`));
+        }
+      };
+      script.onerror = () => {
+        loadingComponents.delete(name);
+        reject(new Error(`Failed to load component: ${name} from ${scriptUrl}`));
+      };
+      document.head.appendChild(script);
+    });
+
+    loadingComponents.set(name, loadPromise);
+    return loadPromise;
+  }
+
+  function isComponentLoaded(name) {
+    return componentCache.has(name);
+  }
+
+  function getComponent(name) {
+    if (!isComponentLoaded(name)) {
+      throw new Error(`Component "${name}" is not loaded. Call loadComponent() first.`);
+    }
+    return componentCache.get(name);
+  }
+
+  function preloadComponents(names) {
+    return Promise.all(names.map(name => loadComponent(name)));
+  }
+
+  function registerComponent(name, path) {
+    componentRegistry.set(name, path);
+    return true;
+  }
+
+  function getComponentConfig() {
+    return {
+      domain: COMPONENT_BASE_URL,
+      path: COMPONENT_PATH,
+      registeredComponents: Array.from(componentRegistry.entries()),
+      loadedComponents: Array.from(componentCache.keys())
+    };
+  }
+
+  // Enhanced h function to handle component loading (MODIFIED 10.09.2024)
+  const h = (tag, props = {}, children = []) => {
+    // If it's a function (already loaded component), use it directly
+    if (typeof tag === 'function') {
+      try {
+        return tag({ ...props, children });
+      } catch (error) {
+        console.error("Component render error:", error);
+        return h("div", { className: "error" }, ["Component error"]);
+      }
+    }
+
+    // If it's a registered component name, handle it
+    if (typeof tag === 'string' && componentRegistry.has(tag)) {
+      if (componentCache.has(tag)) {
+        // Component is already loaded, use it
+        const component = componentCache.get(tag);
+        return h(component, props, children);
+      } else {
+        // Extract event handlers before JSON serialization
+        const eventHandlers = {};
+        const serializableProps = {};
+
+        Object.keys(props).forEach(key => {
+          if (key.startsWith('on') && typeof props[key] === 'function') {
+            eventHandlers[key] = props[key];
+          } else {
+            serializableProps[key] = props[key];
+          }
+        });
+
+        // Component needs to be loaded - return a placeholder
+        const placeholder = {
+          tag: 'div',
+          props: {
+            className: 'component-loading',
+            'data-component-name': tag,
+            'data-component-props': JSON.stringify(serializableProps),
+            'data-component-children': JSON.stringify(children),
+            'data-component-events': JSON.stringify(Object.keys(eventHandlers))
+          },
+          children: [`Loading ${tag}...`],
+          _eventHandlers: eventHandlers // Store event handlers separately
+        };
+
+        return placeholder;
+      }
+    }
+
+    // Original h function logic for HTML elements
+    if (tag === null || tag === undefined) {
+      console.error("Tag cannot be null/undefined");
+      tag = "div";
+    }
+
     const filteredChildren = Array.isArray(children)
       ? children.filter((child) => child != null)
       : children != null
-      ? [children]
-      : [];
+        ? [children]
+        : [];
 
     return { tag, props, children: filteredChildren };
   };
 
+  // Check if two nodes are different
   const isNodeChanged = (node1, node2) => {
     if (node1.props?.key !== node2.props?.key) return true;
     // Handle null cases first
@@ -199,53 +431,63 @@ const DomKit = (function () {
 
   // Create DOM element from virtual node, add support for refs and custom renderers
   const createDomElement = (vnode) => {
-    // Handle null/undefined cases
-    if (vnode === null || vnode === undefined) {
-      return document.createTextNode("");
-    }
-
-    // Handle text nodes
-    if (typeof vnode === "string" || typeof vnode === "number") {
-      return document.createTextNode(vnode);
-    }
-
-    // Handle component references
-    if (typeof vnode.tag === "function") {
-      const componentResult = vnode.tag(vnode.props || {});
-      return createDomElement(componentResult);
-    }
-
-    // Regular elements
-    const element = document.createElement(vnode.tag);
-
-    // Set properties
-    if (vnode.props) {
-      updateProps(element, vnode.props, {});
-
-      // Handle ref property
-      if (vnode.props.ref && typeof vnode.props.ref === "function") {
-        vnode.props.ref(element);
+    try {
+      // Handle null/undefined cases
+      if (vnode === null || vnode === undefined) {
+        return document.createTextNode("");
       }
-    }
 
-    // Ensure children is an array and append children
-    const children = Array.isArray(vnode.children)
-      ? vnode.children
-      : vnode.children
-      ? [vnode.children]
-      : [];
-
-    children.forEach((child) => {
-      if (child !== null && child !== undefined) {
-        element.appendChild(createDomElement(child));
+      // Handle text nodes
+      if (typeof vnode === "string" || typeof vnode === "number") {
+        return document.createTextNode(vnode);
       }
-    });
 
-    return element;
+      // Handle component references
+      if (typeof vnode.tag === "function") {
+        const componentResult = vnode.tag(vnode.props || {});
+        return createDomElement(componentResult);
+      }
+
+      // Handle SVG elements
+      let element;
+      if (vnode.props && vnode.props.xmlns) {
+        element = document.createElementNS(vnode.props.xmlns, vnode.tag);
+      } else {
+        element = document.createElement(vnode.tag);
+      }
+
+      // Set properties
+      if (vnode.props) {
+        updateProps(element, vnode.props, {});
+
+        // Handle ref property
+        if (vnode.props.ref && typeof vnode.props.ref === "function") {
+          vnode.props.ref(element);
+        }
+      }
+
+      // Ensure children is an array and append children
+      const children = Array.isArray(vnode.children)
+        ? vnode.children
+        : vnode.children
+          ? [vnode.children]
+          : [];
+
+      children.forEach((child) => {
+        if (child !== null && child !== undefined) {
+          element.appendChild(createDomElement(child));
+        }
+      });
+
+      return element;
+    } catch (error) {
+      console.error('Failed to create DOM element:', error, vnode);
+      return document.createTextNode('');
+    }
   };
 
-  // Render virtual DOM to real DOM with diffing
-  const render = (vnode, container) => {
+  // Enhanced render function to handle component loading (MODIFIED)
+  const render = async (vnode, container) => {
     if (!container) {
       console.error("Render failed: no container provided");
       return;
@@ -255,23 +497,48 @@ const DomKit = (function () {
       const domContainer = document.querySelector(container);
       if (!domContainer) {
         console.error(`Container not found: ${container}`);
-        return; // Exit early to prevent null errors
+        return;
       }
       container = domContainer;
     }
 
-    // Safe Mutation Observer initialization
+    // Check if vnode uses any components that need loading
+    const componentNames = findComponentNames(vnode);
+
+    if (componentNames.length > 0) {
+      try {
+        // Load all needed components FIRST
+        await Promise.all(componentNames.map(name => loadComponent(name)));
+
+        // AFTER components are loaded, recreate the vnode with actual components
+        vnode = recreateVNodeWithComponents(vnode);
+
+        // Now proceed with normal rendering
+        proceedWithRendering(vnode, container);
+
+      } catch (error) {
+        console.error('Failed to load components:', error);
+        container.innerHTML = `<div class="error">Failed to load components: ${error.message}</div>`;
+      }
+    } else {
+      // No components need loading, proceed normally
+      proceedWithRendering(vnode, container);
+    }
+  };
+
+  function proceedWithRendering(vnode, container) {
+    // Safe Mutation Observer initialization with optimized settings
     if (typeof MutationObserver !== 'undefined' && !container._observer) {
       try {
         container._observer = new MutationObserver(() => {
           container._externallyModified = true;
         });
-        
+
         container._observer.observe(container, {
           childList: true,
-          subtree: true,
-          attributes: true,
-          characterData: true
+          subtree: false, // Only observe direct children
+          attributes: false,
+          characterData: false
         });
       } catch (error) {
         console.warn('MutationObserver setup failed:', error);
@@ -286,8 +553,10 @@ const DomKit = (function () {
 
     // Render with diffing or create from scratch
     if (!container._vdom) {
-      // Clear container (using the more efficient method)
-      container.innerHTML = '';
+      // Clear container efficiently
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
       container.appendChild(createDomElement(vnode));
       container._vdom = vnode;
     } else {
@@ -295,7 +564,11 @@ const DomKit = (function () {
       updateElement(container, vnode, container._vdom, 0);
       container._vdom = vnode;
     }
-  };
+
+    // NEW: Components should now be loaded, so config should show them
+    const config = DomKit.getComponentConfig();
+    console.log('Components after render:', config.loadedComponents);
+  }
 
   // Create a helper function to standardize the pattern
   const createApp = (renderFn, initialState, containerSelector) => {
@@ -400,7 +673,7 @@ const DomKit = (function () {
     // Get the old vdom
     const oldNode = target._injected[index];
 
-     // At least validate if the new node is different
+    // At least validate if the new node is different
     if (oldNode && !isNodeChanged(newNode, oldNode)) {
       return target.children[index];  // No changes needed
     }
@@ -616,6 +889,23 @@ const DomKit = (function () {
     useState,
     createInputField,
     memo,
+    // Component loader methods (ADDED)
+    configureComponentLoader,
+    loadComponent,
+    preloadComponents,
+    isComponentLoaded,
+    getComponent,
+    registerComponent,
+    getComponentConfig,
+    unloadComponent,
+    unloadAllComponents,
+    cleanupComponentLoader,
+    isComponentRegistered(name) {
+      return componentRegistry.has(name);
+    },
+    getLoadingComponents() {
+      return Array.from(loadingComponents.keys());
+    },
     // Utility methods
     mount(component, container) {
       render(h(component), container);
@@ -651,3 +941,12 @@ const DomKit = (function () {
     },
   };
 })();
+
+// Component export helper (ADDED)
+window.registerDomKitComponent = function (name, component) {
+  if (!window.__domkitComponents) {
+    window.__domkitComponents = {};
+  }
+  window.__domkitComponents[name] = component;
+  console.log(`Component registered: ${name}`);
+};
