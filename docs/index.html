@@ -1,323 +1,426 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DomKit - Minimalist Front-End Renderer</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DomKit - Minimalist Front-End Renderer with Component Support</title>
     <style>
-        :root {
-            --primary: #4a6fa5;
-            --secondary: #166088;
-            --accent: #4fc3f7;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: var(--font-main);
-            line-height: 1.6;
-            color: var(--dark);
-            background-color: var(--light);
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        header {
-            background-color: var(--primary);
-            color: white;
-            padding: 2rem 0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-        
-        .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-        }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            transition: opacity 0.3s;
-        }
-        
-        .nav-links a:hover {
-            opacity: 0.8;
-        }
-        
-        .hero {
-            text-align: center;
-            padding: 3rem 0;
-        }
-        
+      :root {
+        --primary: #4a6fa5;
+        --secondary: #166088;
+        --accent: #4fc3f7;
+        --light: #f8f9fa;
+        --dark: #212529;
+        --success: #28a745;
+        --warning: #ffc107;
+        --danger: #dc3545;
+        --font-main: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: var(--font-main);
+        line-height: 1.6;
+        color: var(--dark);
+        background-color: var(--light);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      header {
+        background-color: var(--primary);
+        color: white;
+        padding: 2rem 0;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+      }
+
+      .logo {
+        font-size: 1.8rem;
+        font-weight: bold;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        transition: opacity 0.3s;
+      }
+
+      .nav-links a:hover {
+        opacity: 0.8;
+      }
+
+      .hero {
+        text-align: center;
+        padding: 3rem 0;
+      }
+
+      .hero h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      .hero p {
+        font-size: 1.2rem;
+        max-width: 700px;
+        margin: 0 auto 2rem;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 0.8rem 1.5rem;
+        background-color: var(--accent);
+        color: var(--dark);
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+        transition: all 0.3s;
+        border: none;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        background-color: #3da8d8;
+        transform: translateY(-2px);
+      }
+
+      .btn-outline {
+        background-color: transparent;
+        border: 2px solid var(--accent);
+        color: var(--accent);
+      }
+
+      .btn-outline:hover {
+        background-color: var(--accent);
+        color: var(--dark);
+      }
+
+      section {
+        padding: 4rem 0;
+      }
+
+      .section-title {
+        text-align: center;
+        margin-bottom: 3rem;
+        font-size: 2.2rem;
+        color: var(--secondary);
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+      }
+
+      .feature-card {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-5px);
+      }
+
+      .feature-card h3 {
+        color: var(--primary);
+        margin-bottom: 1rem;
+        font-size: 1.4rem;
+      }
+
+      .code-block {
+        background-color: #f5f5f5;
+        padding: 1.5rem;
+        border-radius: 6px;
+        font-family: "Courier New", Courier, monospace;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+      }
+
+      .example-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        margin: 2rem 0;
+        width: 100%;
+      }
+
+      .example-code {
+        flex: 1;
+        min-width: 300px;
+        width: 100%;
+      }
+
+      .example-preview {
+        flex: 1;
+        min-width: 300px;
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .example-preview h4 {
+        margin-bottom: 1rem;
+        color: var(--secondary);
+      }
+
+      footer {
+        background-color: var(--dark);
+        color: white;
+        padding: 3rem 0;
+        text-align: center;
+      }
+
+      .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin: 1.5rem 0;
+      }
+
+      .footer-links a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .footer-links a:hover {
+        text-decoration: underline;
+      }
+
+      .copyright {
+        margin-top: 2rem;
+        opacity: 0.7;
+        font-size: 0.9rem;
+      }
+
+      .component-loading {
+        border: 2px dashed #ccc;
+        padding: 1rem;
+        text-align: center;
+        margin: 1rem 0;
+        border-radius: 4px;
+      }
+
+      .feature-badge {
+        display: inline-block;
+        background-color: var(--success);
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-left: 0.5rem;
+      }
+
+      @media (max-width: 768px) {
         .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+          font-size: 2.2rem;
         }
-        
-        .hero p {
-            font-size: 1.2rem;
-            max-width: 700px;
-            margin: 0 auto 2rem;
+
+        .nav-links {
+          gap: 1rem;
         }
-        
-        .btn {
-            display: inline-block;
-            padding: 0.8rem 1.5rem;
-            background-color: var(--accent);
-            color: var(--dark);
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: all 0.3s;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .btn:hover {
-            background-color: #3da8d8;
-            transform: translateY(-2px);
-        }
-        
-        .btn-outline {
-            background-color: transparent;
-            border: 2px solid var(--accent);
-            color: var(--accent);
-        }
-        
-        .btn-outline:hover {
-            background-color: var(--accent);
-            color: var(--dark);
-        }
-        
-        section {
-            padding: 4rem 0;
-        }
-        
-        .section-title {
-            text-align: center;
-            margin-bottom: 3rem;
-            font-size: 2.2rem;
-            color: var(--secondary);
-        }
-        
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 3rem;
-        }
-        
-        .feature-card {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .feature-card h3 {
-            color: var(--primary);
-            margin-bottom: 1rem;
-            font-size: 1.4rem;
-        }
-        
-        .code-block {
-            background-color: #f5f5f5;
-            padding: 1.5rem;
-            border-radius: 6px;
-            font-family: 'Courier New', Courier, monospace;
-            overflow-x: auto;
-            margin: 1.5rem 0;
-        }
-        
+
         .example-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2rem;
-            margin: 2rem 0;
-            width: 100%;
+          flex-direction: column;
         }
-        
-        .example-code {
-            flex: 1;
-            min-width: 300px;
-            width:100%;
-        }
-        
-        .example-preview {
-            flex: 1;
-            min-width: 300px;
-            background-color: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .example-preview h4 {
-            margin-bottom: 1rem;
-            color: var(--secondary);
-        }
-        
-        footer {
-            background-color: var(--dark);
-            color: white;
-            padding: 3rem 0;
-            text-align: center;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin: 1.5rem 0;
-        }
-        
-        .footer-links a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-        
-        .footer-links a:hover {
-            text-decoration: underline;
-        }
-        
-        .copyright {
-            margin-top: 2rem;
-            opacity: 0.7;
-            font-size: 0.9rem;
-        }
-        
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.2rem;
-            }
-            
-            .nav-links {
-                gap: 1rem;
-            }
-            
-            .example-container {
-                flex-direction: column;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="app"></div>
 
-    <script src="DomKit.min.js"></script>
+    <script src="../DomKit.js"></script>
     <script>
-        const { h, render, createComponent } = DomKit;
+      const {
+        h,
+        render,
+        createComponent,
+        createState,
+        createStatefulComponent,
+        useState,
+        createInputField,
+        memo,
+      } = DomKit;
 
-        // Components
-        const Header = () => {
-            return h('header', {}, [
-                h('div', { className: 'container' }, [
-                    h('nav', {}, [
-                        h('div', { className: 'logo' }, 'DomKit'),
-                        h('div', { className: 'nav-links' }, [
-                            h('a', { href: '#features' }, 'Features'),
-                            // h('a', { href: '#examples' }, 'Examples'),
-                            h('a', { href: '#github' }, 'GitHub')
-                        ])
-                    ]),
-                    h('div', { className: 'hero' }, [
-                        h('h1', {}, 'Minimalist Front-End Renderer'),
-                        h('p', {}, 'DomKit is a lightweight JavaScript library for building user interfaces with a simple virtual DOM implementation and component support.'),
-                        h('div', { style: { display: 'flex', gap: '1rem', justifyContent: 'center' } }, [
-                            h('a', { className: 'btn', href: '#examples' }, 'Get Started'),
-                            h('a', { className: 'btn btn-outline', href: 'https://github.com/script-php/DomKit', target: '_blank' }, 'GitHub')
-                        ])
-                    ])
+      // Configure component loader
+      DomKit.configureComponentLoader({
+        domain: "",
+        componentPath: "/components/",
+        components: {
+          AsyncComponent: "AsyncComponent.js",
+          UserCard: "UserCard.js",
+        },
+      });
+
+      // Components
+      const Header = () => {
+        return h("header", {}, [
+          h("div", { className: "container" }, [
+            h("nav", {}, [
+              h("div", { className: "logo" }, "DomKit"),
+              h("div", { className: "nav-links" }, [
+                h("a", { href: "#features" }, "Features"),
+                h("a", { href: "#examples" }, "Examples"),
+                h("a", { href: "#github" }, "GitHub"),
+              ]),
+            ]),
+            h("div", { className: "hero" }, [
+              h("h1", {}, "Minimalist Front-End Renderer"),
+              h(
+                "p",
+                {},
+                "DomKit is a lightweight JavaScript library for building user interfaces with a simple virtual DOM implementation and component support."
+              ),
+              h(
+                "div",
+                {
+                  style: {
+                    display: "flex",
+                    gap: "1rem",
+                    justifyContent: "center",
+                  },
+                },
+                [
+                  h(
+                    "a",
+                    { className: "btn", href: "#examples" },
+                    "Get Started"
+                  ),
+                  h(
+                    "a",
+                    {
+                      className: "btn btn-outline",
+                      href: "https://github.com/script-php/DomKit",
+                      target: "_blank",
+                    },
+                    "GitHub"
+                  ),
+                ]
+              ),
+            ]),
+          ]),
+        ]);
+      };
+
+      const Features = createComponent(() => {
+        const features = [
+          {
+            title: "Virtual DOM",
+            description:
+              "Efficient DOM updates with a lightweight virtual DOM implementation that minimizes direct DOM manipulation.",
+          },
+          {
+            title: "Component Support",
+            description:
+              "Create reusable components with props to build complex UIs from simple building blocks.",
+          },
+          {
+            title: "Component Loader System",
+            description:
+              "Dynamic component loading with caching, preloading, and dependency management.",
+            isNew: true,
+          },
+          {
+            title: "State Management",
+            description:
+              "Built-in state management with hooks and stateful components.",
+            isNew: true,
+          },
+          {
+            title: "Lightweight",
+            description:
+              "Tiny footprint with zero dependencies, perfect for performance-critical applications.",
+          },
+          {
+            title: "Simple API",
+            description:
+              "Intuitive API with just a few key functions to learn: h(), render(), and createComponent().",
+          },
+          {
+            title: "Flexible",
+            description:
+              "Works with any front-end stack or can be used standalone for simple projects.",
+          },
+          {
+            title: "DOM Injection",
+            description:
+              "Powerful DOM injection methods for dynamically updating content anywhere on the page.",
+          },
+          {
+            title: "Focus Retention",
+            description:
+              "Input fields maintain focus and cursor position during re-renders.",
+            isNew: true,
+          },
+          {
+            title: "Memoization",
+            description:
+              "Performance optimization with memo() to prevent unnecessary re-renders.",
+            isNew: true,
+          },
+        ];
+
+        return h("section", { id: "features" }, [
+          h("div", { className: "container" }, [
+            h("h2", { className: "section-title" }, "Features"),
+            h(
+              "div",
+              { className: "features" },
+              features.map((feat) =>
+                h("div", { className: "feature-card" }, [
+                  h("h3", {}, [
+                    feat.title,
+                    feat.isNew
+                      ? h("span", { className: "feature-badge" }, "NEW")
+                      : null,
+                  ]),
+                  h("p", {}, feat.description),
                 ])
-            ]);
-        };
+              )
+            ),
+          ]),
+        ]);
+      });
 
-        const Features = createComponent(() => {
-            const features = [
-                {
-                    title: 'Virtual DOM',
-                    description: 'Efficient DOM updates with a lightweight virtual DOM implementation that minimizes direct DOM manipulation.'
-                },
-                {
-                    title: 'Component Support',
-                    description: 'Create reusable components with props to build complex UIs from simple building blocks.'
-                },
-                {
-                    title: 'Lightweight',
-                    description: 'Tiny footprint (~3KB gzipped) with zero dependencies, perfect for performance-critical applications.'
-                },
-                {
-                    title: 'Simple API',
-                    description: 'Intuitive API with just a few key functions to learn: h(), render(), and createComponent().'
-                },
-                {
-                    title: 'Flexible',
-                    description: 'Works with any front-end stack or can be used standalone for simple projects.'
-                },
-                {
-                    title: 'DOM Injection',
-                    description: 'Powerful DOM injection methods for dynamically updating content anywhere on the page.'
-                }
-            ];
+      const Examples = createComponent(() => {
+        return h("section", { id: "examples" }, [
+          h("div", { className: "container" }, [
+            h("h2", { className: "section-title" }, "Examples"),
 
-            return h('section', { id: 'features' }, [
-                h('div', { className: 'container' }, [
-                    h('h2', { className: 'section-title' }, 'Features'),
-                    h('div', { className: 'features' }, 
-                        features.map(feat => 
-                            h('div', { className: 'feature-card' }, [
-                                h('h3', {}, feat.title),
-                                h('p', {}, feat.description)
-                            ])
-                        )
-                    )
-                ])
-            ]);
-        });
-
-        const Examples = createComponent(() => {
-            return h('section', { id: 'examples' }, [
-                h('div', { className: 'container' }, [
-                    h('h2', { className: 'section-title' }, 'Examples'),
-                    
-                    // Example 1: Basic Usage
-                    h('div', { className: 'example-container' }, [
-                        h('div', { className: 'example-code' }, [
-                            h('h3', {}, 'Basic Usage'),
-                            h('pre', { className: 'code-block' }, [
-                                h('code', {}, `const { h, render } = DomKit;
+            // Example 1: Basic Usage
+            h("div", { className: "example-container" }, [
+              h("div", { className: "example-code" }, [
+                h("h3", {}, "Basic Usage"),
+                h("pre", { className: "code-block" }, [
+                  h(
+                    "code",
+                    {},
+                    `const { h, render } = DomKit;
 
 const App = () => {
   return h('div', { className: 'greeting' }, [
@@ -329,22 +432,25 @@ const App = () => {
   ]);
 };
 
-render(h(App), '#app');`)
-                            ])
-                        ]),
-                        h('div', { className: 'example-preview', id: 'example1' }, [
-                            h('h4', {}, 'Result'),
-                            h('div', { id: 'example1-content' })
-                        ])
-                    ]),
-                    
-                    // Example 2: Components
-                    h('div', { className: 'example-container' }, [
-                        h('div', { className: 'example-code' }, [
-                            h('h3', {}, 'Components'),
-                            h('pre', { className: 'code-block' }, [
-                                h('code', {}, `
-const { h, createComponent } = DomKit;
+render(h(App), '#app');`
+                  ),
+                ]),
+              ]),
+              h("div", { className: "example-preview", id: "example1" }, [
+                h("h4", {}, "Result"),
+                h("div", { id: "example1-content" }),
+              ]),
+            ]),
+
+            // Example 2: Components
+            h("div", { className: "example-container" }, [
+              h("div", { className: "example-code" }, [
+                h("h3", {}, "Components"),
+                h("pre", { className: "code-block" }, [
+                  h(
+                    "code",
+                    {},
+                    `const { h, createComponent } = DomKit;
 
 const Button = createComponent((props) => {
   return h('button', { 
@@ -373,182 +479,512 @@ const App = () => {
       onClick: () => console.log('Secondary clicked!')
     })
   ]);
-};`)
-                            ])
-                        ]),
-                        h('div', { className: 'example-preview', id: 'example2' }, [
-                            h('h4', {}, 'Result'),
-                            h('div', { id: 'example2-content' })
-                        ])
-                    ]),
-                    
-                    // Example 3: Dynamic Updates
-                    h('div', { className: 'example-container' }, [
-                        h('div', { className: 'example-code' }, [
-                            h('h3', {}, 'Dynamic Updates'),
-                            h('pre', { className: 'code-block' }, [
-                                h('code', {}, `const Counter = createComponent((props) => {
-            const count = props.count || 0;
+};`
+                  ),
+                ]),
+              ]),
+              h("div", { className: "example-preview", id: "example2" }, [
+                h("h4", {}, "Result"),
+                h("div", { id: "example2-content" }),
+              ]),
+            ]),
 
-            const increment = () => {
-            render(h(Counter, { count: count + 1 }), "#example3-content");
-            };
+            // Example 3: Dynamic Updates
+            h("div", { className: "example-container" }, [
+              h("div", { className: "example-code" }, [
+                h("h3", {}, "Dynamic Updates"),
+                h("pre", { className: "code-block" }, [
+                  h(
+                    "code",
+                    {},
+                    `const Counter = createComponent((props) => {
+  const count = props.count || 0;
 
-            return h('div', {}, [
-                h('h2', {}, \`Count: \${count}\`),
-                h('button', { 
-                    onClick: increment,
-                    style: {
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#4a6fa5',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }
-                }, 'Increment')
-            ]);
-      });
-      render(h(Counter), "#example3-content");`)
-                            ])
-                        ]),
-                        h('div', { className: 'example-preview' }, [
-                            h('h4', {}, 'Result'),
-                            h('div', { id: 'example3-content' })
-                        ])
-                    ])
-                ])
-            ]);
-        });
+  const increment = () => {
+    render(h(Counter, { count: count + 1 }), "#example3-content");
+  };
 
-        const GitHubSection = createComponent(() => {
-            return h('section', { id: 'github' }, [
-                h('div', { className: 'container' }, [
-                    h('h2', { className: 'section-title' }, 'Get DomKit'),
-                    h('div', { style: { textAlign: 'center', maxWidth: '600px', margin: '0 auto' } }, [
-                        h('p', { style: { marginBottom: '2rem' } }, 
-                            'DomKit is open source and available on GitHub. Download it, contribute, or report issues.'),
-                        h('a', { 
-                            className: 'btn', 
-                            href: 'https://github.com/script-php/DomKit', 
-                            target: '_blank',
-                            style: { fontSize: '1.2rem', padding: '1rem 2rem' }
-                        }, 'View on GitHub'),
-                        h('div', { className: 'code-block', style: { marginTop: '2rem', textAlign: 'left' } }, [
-                            h('p', { style: { marginBottom: '0.5rem' } }, 'Install via CDN:'),
-                            h('code', {}, "not available for now...")
-                        ])
-                    ])
-                ])
-            ]);
-        });
+  return h('div', {}, [
+    h('h2', {}, \`Count: \${count}\`),
+    h('button', { 
+      onClick: increment,
+      style: {
+        padding: '0.5rem 1rem',
+        backgroundColor: '#4a6fa5',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer'
+      }
+    }, 'Increment')
+  ]);
+});
 
-        const Footer = createComponent(() => {
-            return h('footer', {}, [
-                h('div', { className: 'container' }, [
-                    h('div', { className: 'logo', style: { fontSize: '1.8rem', marginBottom: '1rem' } }, 'DomKit'),
-                    h('p', {}, 'A minimalist front-end renderer with component support'),
-                    h('div', { className: 'footer-links' }, [
-                        h('a', { href: '#features' }, 'Features'),
-                        h('a', { href: '#examples' }, 'Examples'),
-                        h('a', { href: 'https://github.com/script-php/DomKit', target: '_blank' }, 'GitHub'),
-                        h('a', { href: '#' }, 'Documentation')
-                    ]),
-                    h('p', { className: 'copyright' }, '© 2023 DomKit Project. MIT License.')
-                ])
-            ]);
-        });
+render(h(Counter), "#example3-content");`
+                  ),
+                ]),
+              ]),
+              h("div", { className: "example-preview" }, [
+                h("h4", {}, "Result"),
+                h("div", { id: "example3-content" }),
+              ]),
+            ]),
 
-        // Main App
-        const App = () => {
-            return h('div', {}, [
-                h(Header),
-                h(Features),
-                h(Examples),
-                h(GitHubSection),
-                h(Footer)
-            ]);
-        };
+            // Example 4: State Management
+            h("div", { className: "example-container" }, [
+              h("div", { className: "example-code" }, [
+                h("h3", {}, "State Management"),
+                h("pre", { className: "code-block" }, [
+                  h(
+                    "code",
+                    {},
+                    `const app = DomKit.createApp(
+        (state, setState) => {
+          const increment = () => {
+            setState({ count: state.count + 1 });
+          };
 
-        // Render the app
-        render(h(App), '#app');
+          const updateName = (value) => {
+            setState({ name: value });
+          };
 
-        // Render the examples
-        const Example1 = () => {
-            return h('div', { className: 'greeting' }, [
-                h('h1', {}, 'Hello World'),
-                h('p', {}, 'This is a simple DomKit example.'),
-                h('button', { 
-                    onClick: () => alert('Button clicked!'),
-                    style: {
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#4a6fa5',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }
-                }, 'Click Me')
-            ]);
-        };
-        render(h(Example1), '#example1-content');
-
-        const Button = createComponent((props) => {
-            return h('button', { 
-                style: { 
-                    padding: '0.5rem 1rem',
-                    backgroundColor: props.primary ? '#4a6fa5' : '#f0f0f0',
-                    color: props.primary ? 'white' : '#333',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    margin: '0.5rem'
+          return DomKit.h("div", {}, [
+            DomKit.h("h3", {}, "State Example"),
+            DomKit.h("p", {}, 'Count: ' + state.count),
+            DomKit.h(
+              "button",
+              {
+                onClick: increment,
+                style: {
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#4a6fa5",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  marginRight: "0.5rem",
                 },
-                onClick: props.onClick
-            }, props.label);
-        });
+              },
+              "Increment"
+            ),
 
-        const Example2 = () => {
-            return h('div', {}, [
-                h(Button, { 
-                    label: 'Primary Button', 
-                    primary: true,
-                    onClick: () => console.log('Primary clicked!')
-                }),
-                h(Button, { 
-                    label: 'Secondary Button',
-                    onClick: () => console.log('Secondary clicked!')
-                })
-            ]);
+            // Use createInputField instead of regular input
+            DomKit.createInputField({
+              type: "text",
+              placeholder: "Enter your name",
+              value: state.name,
+              onChange: updateName,
+              style: {
+                padding: "0.5rem",
+                margin: "0.5rem 0",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                display: "block",
+              },
+            }),
+            DomKit.h("p", {}, 'Hello, ' + (state.name || "stranger") + '!'),
+          ]);
+        },
+        { count: 0, name: "" },
+        "#example4-content"
+      );`
+                  ),
+                ]),
+              ]),
+              h("div", { className: "example-preview" }, [
+                h("h4", {}, "Result"),
+                h("div", { id: "example4-content" }),
+              ]),
+            ]),
+
+            // Example 5: Component Loader
+            h("div", { className: "example-container" }, [
+              h("div", { className: "example-code" }, [
+                h("h3", {}, "Component Loader"),
+                h("pre", { className: "code-block" }, [
+                  h(
+                    "code",
+                    {},
+                    `// Configure component loader
+DomKit.configureComponentLoader({
+  domain: '',
+  componentPath: '/components/',
+  components: {
+    'UserCard': 'UserCard.js',
+    'AsyncComponent': 'AsyncComponent.js'
+  }
+});
+
+// Register additional components
+DomKit.registerComponent('Chart', 'Chart.js');
+
+// Use components (they'll load automatically)
+const App = () => {
+  return h('div', {}, [
+    h('h2', {}, 'Component Loader Demo'),
+    h('UserCard', { 
+      name: 'John Doe',
+      email: 'john@example.com'
+    }),
+    h('AsyncComponent', { data: someData })
+  ]);
+};`
+                  ),
+                ]),
+              ]),
+              h("div", { className: "example-preview" }, [
+                h("h4", {}, "Result"),
+                h("div", { id: "example5-content" }, [
+                  h(
+                    "p",
+                    {},
+                    "Component loader is configured. Try using a registered component:"
+                  ),
+                  h(
+                    "div",
+                    { className: "component-loading" },
+                    "UserCard component would load here..."
+                  ),
+                ]),
+              ]),
+            ]),
+
+            // Example 6: Focus Retention
+            h("div", { className: "example-container" }, [
+              h("div", { className: "example-code" }, [
+                h("h3", {}, "Focus Retention"),
+                h("pre", { className: "code-block" }, [
+                  h(
+                    "code",
+                    {},
+                    `const { createInputField } = DomKit;
+
+const FormExample = () => {
+  const state = createState({ 
+    firstName: '', 
+    lastName: '',
+    email: '' 
+  });
+  
+  const updateField = (field, value) => {
+    state.setState({ [field]: value });
+  };
+  
+  return h('div', {}, [
+    h('h3', {}, 'Form with Focus Retention'),
+    h('p', {}, 'Try typing and then causing a re-render. Focus and cursor position will be preserved.'),
+    createInputField({
+      type: 'text',
+      placeholder: 'First Name',
+      value: state.getState().firstName,
+      onChange: (value) => updateField('firstName', value)
+    }),
+    createInputField({
+      type: 'text',
+      placeholder: 'Last Name',
+      value: state.getState().lastName,
+      onChange: (value) => updateField('lastName', value)
+    }),
+    createInputField({
+      type: 'email',
+      placeholder: 'Email',
+      value: state.getState().email,
+      onChange: (value) => updateField('email', value)
+    }),
+    h('button', { 
+      onClick: () => state.setState({}) // Force re-render
+    }, 'Test Re-render')
+  ]);
+};
+
+render(h(FormExample), "#example6-content");`
+                  ),
+                ]),
+              ]),
+              h("div", { className: "example-preview" }, [
+                h("h4", {}, "Result"),
+                h("div", { id: "example6-content" }),
+              ]),
+            ]),
+          ]),
+        ]);
+      });
+
+      const Footer = createComponent(() => {
+        return h("footer", {}, [
+          h("div", { className: "container" }, [
+            h(
+              "div",
+              {
+                className: "logo",
+                style: { fontSize: "1.8rem", marginBottom: "1rem" },
+              },
+              "DomKit"
+            ),
+            h(
+              "p",
+              {},
+              "A minimalist front-end renderer with component support"
+            ),
+            h("div", { className: "footer-links" }, [
+              h("a", { href: "#features" }, "Features"),
+              h("a", { href: "#examples" }, "Examples"),
+              h(
+                "a",
+                {
+                  href: "https://github.com/script-php/DomKit",
+                  target: "_blank",
+                },
+                "GitHub"
+              ),
+              h("a", { href: "#" }, "Documentation"),
+            ]),
+            h(
+              "p",
+              { className: "copyright" },
+              "© 2024 DomKit Project. MIT License."
+            ),
+          ]),
+        ]);
+      });
+
+      // Main App
+      const App = () => {
+        return h("div", {}, [
+          h(Header),
+          h(Features),
+          h(Examples),
+          // h(GitHubSection),
+          h(Footer),
+        ]);
+      };
+
+      // Render the app
+      render(h(App), "#app");
+
+      // Render the examples
+      const Example1 = () => {
+        return h("div", { className: "greeting" }, [
+          h("h1", {}, "Hello World"),
+          h("p", {}, "This is a simple DomKit example."),
+          h(
+            "button",
+            {
+              onClick: () => alert("Button clicked!"),
+              style: {
+                padding: "0.5rem 1rem",
+                backgroundColor: "#4a6fa5",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+              },
+            },
+            "Click Me"
+          ),
+        ]);
+      };
+      render(h(Example1), "#example1-content");
+
+      const Button = createComponent((props) => {
+        return h(
+          "button",
+          {
+            style: {
+              padding: "0.5rem 1rem",
+              backgroundColor: props.primary ? "#4a6fa5" : "#f0f0f0",
+              color: props.primary ? "white" : "#333",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              margin: "0.5rem",
+            },
+            onClick: props.onClick,
+          },
+          props.label
+        );
+      });
+
+      const Example2 = () => {
+        return h("div", {}, [
+          h(Button, {
+            label: "Primary Button",
+            primary: true,
+            onClick: () => console.log("Primary clicked!"),
+          }),
+          h(Button, {
+            label: "Secondary Button",
+            onClick: () => console.log("Secondary clicked!"),
+          }),
+        ]);
+      };
+      render(h(Example2), "#example2-content");
+
+      const Counter = createComponent((props) => {
+        const count = props.count || 0;
+
+        const increment = () => {
+          render(h(Counter, { count: count + 1 }), "#example3-content");
         };
-        render(h(Example2), '#example2-content');
 
-
-        const Counter = createComponent((props) => {
-            const count = props.count || 0;
-
-            const increment = () => {
-            render(h(Counter, { count: count + 1 }), "#example3-content");
-            };
-
-            return h('div', {}, [
-                h('h2', {}, `Count: ${count}`),
-                h('button', { 
-                    onClick: increment,
-                    style: {
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#4a6fa5',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }
-                }, 'Increment')
-            ]);
+        return h("div", {}, [
+          h("h2", {}, `Count: ${count}`),
+          h(
+            "button",
+            {
+              onClick: increment,
+              style: {
+                padding: "0.5rem 1rem",
+                backgroundColor: "#4a6fa5",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+              },
+            },
+            "Increment"
+          ),
+        ]);
       });
       render(h(Counter), "#example3-content");
 
-        
+      // Example 4: State Management
+      const app = DomKit.createApp(
+        (state, setState) => {
+          const increment = () => {
+            setState({ count: state.count + 1 });
+          };
+
+          const updateName = (value) => {
+            setState({ name: value });
+          };
+
+          return DomKit.h("div", {}, [
+            DomKit.h("h3", {}, "State Example"),
+            DomKit.h("p", {}, `Count: ${state.count}`),
+            DomKit.h(
+              "button",
+              {
+                onClick: increment,
+                style: {
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#4a6fa5",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  marginRight: "0.5rem",
+                },
+              },
+              "Increment"
+            ),
+
+            // Use createInputField instead of regular input
+            DomKit.createInputField({
+              type: "text",
+              placeholder: "Enter your name",
+              value: state.name,
+              onChange: updateName,
+              style: {
+                padding: "0.5rem",
+                margin: "0.5rem 0",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                display: "block",
+              },
+            }),
+            DomKit.h("p", {}, `Hello, ${state.name || "stranger"}!`),
+          ]);
+        },
+        { count: 0, name: "" },
+        "#example4-content"
+      );
+
+      // Example 6: Focus Retention
+      const FormExample = () => {
+        const state = createState({
+          firstName: "",
+          lastName: "",
+          email: "",
+        });
+
+        const updateField = (field, value) => {
+          state.setState({ [field]: value });
+        };
+
+        // Subscribe to state changes and re-render
+        state.subscribe(() => {
+          render(h(FormExample), "#example6-content");
+        });
+
+        return h("div", {}, [
+          h("h3", {}, "Form with Focus Retention"),
+          h(
+            "p",
+            {},
+            "Try typing and then causing a re-render. Focus and cursor position will be preserved."
+          ),
+          createInputField({
+            type: "text",
+            placeholder: "First Name",
+            value: state.getState().firstName,
+            onChange: (value) => updateField("firstName", value),
+            style: {
+              padding: "0.5rem",
+              margin: "0.5rem 0",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              display: "block",
+              width: "100%",
+            },
+          }),
+          createInputField({
+            type: "text",
+            placeholder: "Last Name",
+            value: state.getState().lastName,
+            onChange: (value) => updateField("lastName", value),
+            style: {
+              padding: "0.5rem",
+              margin: "0.5rem 0",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              display: "block",
+              width: "100%",
+            },
+          }),
+          createInputField({
+            type: "email",
+            placeholder: "Email",
+            value: state.getState().email,
+            onChange: (value) => updateField("email", value),
+            style: {
+              padding: "0.5rem",
+              margin: "0.5rem 0",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              display: "block",
+              width: "100%",
+            },
+          }),
+          h(
+            "button",
+            {
+              onClick: () => state.setState({}),
+              style: {
+                padding: "0.5rem 1rem",
+                backgroundColor: "#4a6fa5",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                marginTop: "1rem",
+              },
+            },
+            "Test Re-render"
+          ),
+        ]);
+      };
+      render(h(FormExample), "#example6-content");
     </script>
-</body>
+  </body>
 </html>
