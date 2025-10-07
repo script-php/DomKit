@@ -12,6 +12,10 @@ const DomKit = (function () {
   let COMPONENT_BASE_URL = '';
   let COMPONENT_PATH = '/components/';
 
+  // Render request management (FIX: Race condition protection)
+  const renderRequests = new WeakMap();
+  let renderRequestId = 0;
+
   // Settings function
   function configureComponentLoader(settings = {}) {
     if (settings.domain) {
@@ -31,12 +35,18 @@ const DomKit = (function () {
     console.log(`Component loader configured: ${COMPONENT_BASE_URL}${COMPONENT_PATH}`);
   }
 
-  // Helper to find component names in vnode tree (ADDED 10.09.2024)
+  // FIX: Optimized helper to find component names in vnode tree
   function findComponentNames(vnode) {
     const names = new Set();
+    const visited = new WeakSet(); // FIX: Prevent infinite loops
 
-    function traverse(node) {
-      if (!node) return;
+    function traverse(node, depth = 0) {
+      if (!node || visited.has(node) || depth > 100) return; // FIX: Prevent stack overflow
+      
+      // FIX: Handle different node types more efficiently
+      if (typeof node === 'string' || typeof node === 'number') return;
+      
+      visited.add(node);
 
       // Look for component placeholders
       if (node.props && node.props['data-component-name']) {
@@ -51,8 +61,11 @@ const DomKit = (function () {
         names.add(node.tag);
       }
 
-      if (node.children) {
-        node.children.forEach(traverse);
+      // FIX: More efficient children traversal
+      if (Array.isArray(node.children)) {
+        node.children.forEach(child => traverse(child, depth + 1));
+      } else if (node.children) {
+        traverse(node.children, depth + 1);
       }
     }
 
@@ -327,13 +340,26 @@ const DomKit = (function () {
         const eventName = name.substring(2).toLowerCase();
 
         if (!element._events) element._events = {};
+        if (!element._cleanup) element._cleanup = [];
 
+        // FIX: Properly clean up old event listeners
         if (element._events[eventName]) {
           element.removeEventListener(eventName, element._events[eventName]);
         }
 
-        element._events[eventName] = newProps[name];
-        element.addEventListener(eventName, newProps[name]);
+        // FIX: Store new event handler and add cleanup tracking
+        if (typeof newProps[name] === 'function') {
+          element._events[eventName] = newProps[name];
+          element.addEventListener(eventName, newProps[name]);
+          
+          // Track for cleanup
+          element._cleanup.push(() => {
+            if (element._events && element._events[eventName]) {
+              element.removeEventListener(eventName, element._events[eventName]);
+              delete element._events[eventName];
+            }
+          });
+        }
       } else if (name === "style" && typeof newProps[name] === "object") {
         // Style objects
         const newStyle = newProps[name];
@@ -442,10 +468,20 @@ const DomKit = (function () {
         return document.createTextNode(vnode);
       }
 
-      // Handle component references
+      // FIX: Handle component references with error boundaries
       if (typeof vnode.tag === "function") {
-        const componentResult = vnode.tag(vnode.props || {});
-        return createDomElement(componentResult);
+        try {
+          const componentResult = vnode.tag(vnode.props || {});
+          return createDomElement(componentResult);
+        } catch (error) {
+          console.error('Component error:', error, 'Component:', vnode.tag.name || 'Anonymous');
+          // FIX: Return error component instead of crashing
+          const errorElement = document.createElement('div');
+          errorElement.className = 'domkit-component-error';
+          errorElement.style.cssText = 'color: red; padding: 5px; border: 1px solid red; background: #ffebee;';
+          errorElement.textContent = `Component Error: ${error.message}`;
+          return errorElement;
+        }
       }
 
       // Handle SVG elements
@@ -486,48 +522,128 @@ const DomKit = (function () {
     }
   };
 
-  // Enhanced render function to handle component loading (MODIFIED)
+  // Enhanced render function to handle component loading (FIXED)
   const render = async (vnode, container) => {
+    // FIX: Container validation
     if (!container) {
       console.error("Render failed: no container provided");
-      return;
+      return Promise.reject(new Error("No container provided"));
     }
 
     if (typeof container === "string") {
       const domContainer = document.querySelector(container);
       if (!domContainer) {
         console.error(`Container not found: ${container}`);
-        return;
+        return Promise.reject(new Error(`Container not found: ${container}`));
       }
       container = domContainer;
     }
 
-    // Check if vnode uses any components that need loading
-    const componentNames = findComponentNames(vnode);
+    // FIX: Race condition protection
+    const currentRequestId = ++renderRequestId;
+    renderRequests.set(container, currentRequestId);
 
-    if (componentNames.length > 0) {
-      try {
-        // Load all needed components FIRST
+    // Helper to check if this render request is still current
+    const isCurrentRequest = () => renderRequests.get(container) === currentRequestId;
+
+    try {
+      // Check if vnode uses any components that need loading
+      const componentNames = findComponentNames(vnode);
+
+      if (componentNames.length > 0) {
+        // FIX: Show loading state instead of blank screen
+        const loadingVNode = h('div', { className: 'domkit-loading' }, [
+          h('span', {}, 'Loading components...')
+        ]);
+        proceedWithRendering(loadingVNode, container);
+
+        // Load all needed components
         await Promise.all(componentNames.map(name => loadComponent(name)));
 
-        // AFTER components are loaded, recreate the vnode with actual components
+        // FIX: Check if this render is still current before proceeding
+        if (!isCurrentRequest()) {
+          console.log('Render request superseded, aborting');
+          return;
+        }
+
+        // Recreate vnode with loaded components
         vnode = recreateVNodeWithComponents(vnode);
 
-        // Now proceed with normal rendering
-        proceedWithRendering(vnode, container);
+        // Proceed with normal rendering
+        await proceedWithRenderingAsync(vnode, container);
 
-      } catch (error) {
-        console.error('Failed to load components:', error);
-        container.innerHTML = `<div class="error">Failed to load components: ${error.message}</div>`;
+      } else {
+        // No components need loading, proceed normally
+        await proceedWithRenderingAsync(vnode, container);
       }
-    } else {
-      // No components need loading, proceed normally
-      proceedWithRendering(vnode, container);
+
+    } catch (error) {
+      // FIX: Use proper VDOM for error display instead of innerHTML
+      if (isCurrentRequest()) {
+        console.error('Failed to render:', error);
+        const errorVNode = h('div', { 
+          className: 'domkit-error',
+          style: { 
+            color: 'red', 
+            padding: '10px', 
+            border: '1px solid red', 
+            backgroundColor: '#ffebee' 
+          }
+        }, [
+          h('strong', {}, 'Render Error: '),
+          h('span', {}, String(error.message || error))
+        ]);
+        proceedWithRendering(errorVNode, container);
+      }
     }
   };
 
+  // FIX: Add cleanup system for containers
+  const cleanupContainer = (container) => {
+    if (container._observer) {
+      container._observer.disconnect();
+      container._observer = null;
+    }
+    if (container._cleanup) {
+      container._cleanup.forEach(fn => {
+        try { fn(); } catch (e) { console.warn('Cleanup error:', e); }
+      });
+      container._cleanup = null;
+    }
+  };
+
+  // FIX: Async rendering with proper container validation
+  const proceedWithRenderingAsync = async (vnode, container) => {
+    return new Promise((resolve, reject) => {
+      // FIX: Validate container is still in DOM
+      if (!container || !container.isConnected) {
+        reject(new Error("Container is no longer in DOM"));
+        return;
+      }
+
+      try {
+        // Use requestAnimationFrame for non-blocking render
+        requestAnimationFrame(() => {
+          try {
+            proceedWithRendering(vnode, container);
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
   function proceedWithRendering(vnode, container) {
-    // Safe Mutation Observer initialization with optimized settings
+    // FIX: Additional container validation
+    if (!container || !container.isConnected) {
+      throw new Error("Invalid or disconnected container");
+    }
+
+    // FIX: Safe Mutation Observer initialization with cleanup
     if (typeof MutationObserver !== 'undefined' && !container._observer) {
       try {
         container._observer = new MutationObserver(() => {
@@ -540,6 +656,15 @@ const DomKit = (function () {
           attributes: false,
           characterData: false
         });
+
+        // FIX: Add cleanup tracking
+        if (!container._cleanup) container._cleanup = [];
+        container._cleanup.push(() => {
+          if (container._observer) {
+            container._observer.disconnect();
+            container._observer = null;
+          }
+        });
       } catch (error) {
         console.warn('MutationObserver setup failed:', error);
       }
@@ -551,21 +676,42 @@ const DomKit = (function () {
       container._externallyModified = false;
     }
 
-    // Render with diffing or create from scratch
-    if (!container._vdom) {
-      // Clear container efficiently
+    // FIX: Mark container as DomKit managed
+    if (!container.hasAttribute('data-domkit-container')) {
+      container.setAttribute('data-domkit-container', 'true');
+    }
+
+    // FIX: Wrap rendering in try-catch for error boundaries
+    try {
+      // Render with diffing or create from scratch
+      if (!container._vdom) {
+        // Clear container efficiently
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
+        container.appendChild(createDomElement(vnode));
+        container._vdom = vnode;
+      } else {
+        // Update existing DOM using diffing
+        updateElement(container, vnode, container._vdom, 0);
+        container._vdom = vnode;
+      }
+    } catch (error) {
+      console.error('Render error:', error);
+      // FIX: Show error in proper VDOM format
+      const errorVNode = h('div', { 
+        className: 'domkit-render-error',
+        style: { color: 'red', padding: '5px', border: '1px solid red' }
+      }, `Render Error: ${error.message}`);
+      
+      container._vdom = errorVNode;
       while (container.firstChild) {
         container.removeChild(container.firstChild);
       }
-      container.appendChild(createDomElement(vnode));
-      container._vdom = vnode;
-    } else {
-      // Update existing DOM using diffing
-      updateElement(container, vnode, container._vdom, 0);
-      container._vdom = vnode;
+      container.appendChild(createDomElement(errorVNode));
     }
 
-    // NEW: Components should now be loaded, so config should show them
+    // Components should now be loaded
     const config = DomKit.getComponentConfig();
     console.log('Components after render:', config.loadedComponents);
   }
@@ -905,6 +1051,20 @@ const DomKit = (function () {
     },
     getLoadingComponents() {
       return Array.from(loadingComponents.keys());
+    },
+    // FIX: Add cleanup methods
+    cleanup(container) {
+      if (typeof container === "string") {
+        container = document.querySelector(container);
+      }
+      if (container) {
+        cleanupContainer(container);
+        renderRequests.delete(container);
+      }
+    },
+    cleanupAll() {
+      // Clean up all tracked containers
+      document.querySelectorAll('[data-domkit-container]').forEach(cleanupContainer);
     },
     // Utility methods
     mount(component, container) {
